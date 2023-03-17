@@ -1,0 +1,44 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+    -   id: end-of-file-fixer
+        exclude: ^docs/theme/
+    -   id: trailing-whitespace
+        exclude: |
+            (?x)^(
+                docs/theme/ |
+                VERSION
+            )$
+-   repo: https://github.com/pycqa/isort
+    rev: 5.6.4
+    hooks:
+      - id: isort
+        args: ["--profile", "black", "--filter-files"]
+-   repo: https://github.com/psf/black.git
+    rev: 22.3.0
+    hooks:
+    -   id: black
+    -   id: black-jupyter
+-   repo: https://github.com/pycqa/flake8
+    rev: "4.0.1"
+    hooks:
+    -   id: flake8
+        args: # arguments to configure black
+            - "--max-line-length=120"
+            - "--max-complexity=18"
+            - "--select=B,C,E,F,W,T4,B9"
+            # these are errors that will be ignored by flake8
+            # check out their meaning here
+            # https://flake8.pycqa.org/en/latest/user/error-codes.html
+            - "--ignore=E203,E266,E501,W503,F403,F401,E402"
+        additional_dependencies: [
+            # flake8-docstrings, # We will added this back once we have a consensus
+            flake8-bugbear,
+            pep8-naming,
+            flake8-comprehensions
+        ]
+-   repo: https://github.com/pointerfly/mirrors-mypy # TODO: change back to official repo when base upgrade to 3.7+
+    rev: v0.950
+    hooks:
+        - id: mypy
