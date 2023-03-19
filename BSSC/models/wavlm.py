@@ -366,8 +366,9 @@ class WavLM(nn.Module):
         else:
             with torch.no_grad():
                 features = self.feature_extractor(source)
+        # feature shape [B,C,T]
+        features = features.transpose(1, 2)  # [B,T,C]
 
-        features = features.transpose(1, 2)
         features = self.layer_norm(features)
 
         if padding_mask is not None:
@@ -387,7 +388,7 @@ class WavLM(nn.Module):
             padding_mask=padding_mask,
             layer=None if output_layer is None else output_layer - 1,
         )
-
+        # x shape: [B,T,C']
         res = {
             "x": x,
             "padding_mask": padding_mask,
@@ -401,7 +402,7 @@ class WavLM(nn.Module):
         return feature, res["padding_mask"]
 
     def forward(self, *args, **kwargs):
-        feature = self.extract_features(*args, **kwargs)
+        feature, _ = self.extract_features(*args, **kwargs)
         return feature
 
 
@@ -783,38 +784,49 @@ if __name__ == "__main__":
     temp_path = "/mnt/nas/public2/lilong/data/checkpoints/saved/nas/saved/pretrained/WavLM-Large.pt"
     checkpoint = torch.load(temp_path, map_location="cpu")
     cfg = WavLMConfig(checkpoint["cfg"])
+    print("config", cfg)
+
     model = WavLM(cfg)
+    model.load_state_dict(checkpoint["model"], strict=True)
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     model.to(device)
-    x = torch.rand(1, 16000).to(device)
+    x = torch.rand(1, 7992).to(device)  # downsampling rate is around: 333
     model.eval()
     print("normalize", cfg.normalize)
+    print("model.cfg.encoder_layers", cfg.encoder_layers, model.cfg.encoder_layers)
     with torch.no_grad():
         # y = model.extract_features(x)[0]
-        y = model(x)
-
+        y = model(x, output_layer=cfg.encoder_layers, ret_layer_results=True)
+    print("type of y", type(y), len(y))
+    print(len(y[1]))
+    print("y10", y[1][0], y[1][0][0].shape)  # layer feature [T,B,C]
     # print out the shape of the output depends on whether y is a tuple or not
-    if isinstance(y, tuple):
-        for yi in y:
-            if yi is None:
-                print(yi, "none")
-            else:
-                print(yi.shape)
-    import time
 
-    t0 = time.time()
-    for _ in range(100):
-        model(x)
-    t1 = time.time()
-    print("speed of the model inference is", (t1 - t0) / 100, "s")
+    def print_shape(y):
+        if y is None:
+            print(y, "none")
+        elif isinstance(y, (tuple, list)):
+            for yi in y:
+                print_shape(yi)
+        else:
+            print("output is tensor", y.shape)
 
-    compiled_model = torch.compile(model)
-    y = compiled_model(x)
-    t0 = time.time()
-    for _ in range(100):
-        compiled_model(x)
-    t1 = time.time()
-    print("speed of the compiled model inference is", (t1 - t0) / 100, "s")
+    print_shape(y)
+    # import time
 
-    # print out the number of parameters in the model
-    print(sum(p.numel() for p in model.parameters() if p.requires_grad))
+    # t0 = time.time()
+    # for _ in range(100):
+    #     model(x)
+    # t1 = time.time()
+    # print("speed of the model inference is", (t1 - t0) / 100, "s")
+
+    # compiled_model = torch.compile(model)
+    # y = compiled_model(x)
+    # t0 = time.time()
+    # for _ in range(100):
+    #     compiled_model(x)
+    # t1 = time.time()
+    # print("speed of the compiled model inference is", (t1 - t0) / 100, "s")
+
+    # # print out the number of parameters in the model
+    # print(sum(p.numel() for p in model.parameters() if p.requires_grad))

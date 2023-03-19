@@ -424,18 +424,18 @@ class MultiheadAttention(nn.Module):
         max_exact = num_buckets // 2
         is_small = relative_positions < max_exact
 
-        relative_postion_if_large = max_exact + (
+        relative_position_if_large = max_exact + (
             torch.log(relative_positions.float() / max_exact)
             / math.log(max_distance / max_exact)
             * (num_buckets - max_exact)
         ).to(torch.long)
-        relative_postion_if_large = torch.min(
-            relative_postion_if_large,
-            torch.full_like(relative_postion_if_large, num_buckets - 1),
+        relative_position_if_large = torch.min(
+            relative_position_if_large,
+            torch.full_like(relative_position_if_large, num_buckets - 1),
         )
 
         relative_buckets += torch.where(
-            is_small, relative_positions, relative_postion_if_large
+            is_small, relative_positions, relative_position_if_large
         )
         return relative_buckets
 
